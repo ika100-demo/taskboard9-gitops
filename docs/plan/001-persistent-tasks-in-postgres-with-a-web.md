@@ -3,58 +3,106 @@ plan_id: 001-persistent-tasks-in-postgres-with-a-web
 spec: 001-persistent-tasks-in-postgres-with-a-web
 feature: Persistent tasks in Postgres with a web task list
 gitops_app: ika100-demo/taskboard9-gitops
-status: draft
+status: completed
 repos:
-  - id: taskboard9-gitops
-    shape: gitops-app
-    summary: Declare the postgres resource, give taskboard9-api its connection and wire taskboard9-web to the API
-    acs: [AC-001.1, AC-001.2, AC-001.4, AC-001.5, AC-001.6]
-    gitops:
-      - {resource: postgres}
-      - {uses: postgres, component: taskboard9-api}
-      - {env: {API_URL: 'http://taskboard9-api'}, component: taskboard9-web}
-    depends_on: []
-    done: false
-  - id: taskboard9-api
-    shape: service-python
-    summary: Store tasks in Postgres so they survive restarts and are shared by every instance
-    acs: [AC-001.1, AC-001.2, AC-001.3]
-    criteria:
-      - "Given a task created with POST /tasks {\"title\": \"Buy milk\", \"due_date\": \"2026-12-01\"} (201), when every API process is stopped and started again against the same database, then GET /tasks answers 200 and contains a task with the same id, title \"Buy milk\" and due_date \"2026-12-01\" (system AC-001.1)"
-      - "Given an empty database, tasks \"A\", \"B\" and \"C\" created in that order and the API then restarted, when task \"D\" is created and a client sends GET /tasks, then the response is 200 with exactly A, B, C, D in that order, each with id, title and due_date as returned by its POST (system AC-001.2)"
-      - "Given two API instances using the same database, when task \"A\" is created through the first and then task \"B\" through the second, then GET /tasks on either instance lists A before B with identical fields (system AC-001.1, AC-001.2)"
-      - "Given the database is unreachable (or DATABASE_URL is not set), when a client sends GET /tasks or a valid POST /tasks, then the response arrives within 5 seconds with status 503 and a JSON body {\"detail\": <non-empty string>}, GET /health and GET /ready still answer 200, and once the database is reachable GET /tasks does not contain the task of that POST (system AC-001.3)"
-      - "Given the database was unreachable while the API kept running, when it becomes reachable again, then within 30 seconds GET /tasks answers 200 and a valid POST /tasks answers 201, without the API process being restarted, also when the API process was started while the database was unreachable (system AC-001.3)"
-      - "Given the database is reachable, when a client sends the requests of this repo's spec 001 (valid and invalid POST /tasks, GET /tasks), then the status codes, fields, 422 bodies and oldest-first order are exactly those of the Contract, and a 422 stores no row (system AC-001.1, AC-001.2)"
-    arguments: |
-      Supersedes AC-001.7 of this repo's spec 001 ("empty after restart"): withdraw it there with
-      `/component:spec --amend 001` and replace its test; do not leave a failing or skipped test behind.
-      Config: DATABASE_URL (plus PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD) comes from the system's
-      postgres resource (Secret taskboard9-postgres-app). Suggested stack: psycopg 3 with psycopg_pool (sync,
-      the routes are sync), schema applied by the service itself with CREATE TABLE IF NOT EXISTS under
-      pg_advisory_lock, never blocking startup. Tests need a real PostgreSQL (a devbox recipe or
-      testcontainers); keep an in-process restart test via TestClient(create_app()) on the same database.
-    depends_on: []
-    done: false
-  - id: taskboard9-web
-    shape: web-nextjs
-    summary: Task board start page listing all tasks with a create form
-    acs: [AC-001.4, AC-001.5, AC-001.6, AC-001.7, AC-001.8]
-    criteria:
-      - "Given API_URL points at an API whose GET /tasks answers 200 with [{\"id\": \"1\", \"title\": \"A\", \"due_date\": \"2026-12-01\"}, {\"id\": \"2\", \"title\": \"B\", \"due_date\": null}], when a person opens the start page /, then it shows a level-1 heading \"Tasks\" and a list with \"A\" above \"B\", \"A\" showing \"2026-12-01\" and \"B\" showing \"No due date\" (system AC-001.4)"
-      - "Given GET /tasks answers 200 with [], when a person opens /, then it shows the text \"No tasks yet.\" in place of the list, together with the create form (field \"Title\", field \"Due date\", button \"Add task\") (system AC-001.5)"
-      - "Given the start page is open, when a person enters the title \"Buy milk\" and the due date 2026-12-01 and presses \"Add task\", then the API receives POST /tasks {\"title\": \"Buy milk\", \"due_date\": \"2026-12-01\"}, and after its 201 the returned task appears as the last list entry with \"2026-12-01\" without a page reload (replacing \"No tasks yet.\" when the list was empty) and both fields are empty; with the due date left empty the body carries \"due_date\": null and the entry shows \"No due date\" (system AC-001.6)"
-      - "Given the start page is open, when a person submits a title that is empty or whitespace only, or longer than 200 characters after trimming, then the page shows \"Title is required.\" or \"Title must be at most 200 characters.\" respectively at the title field, keeps the entered title and due date, and sends no POST /tasks to the API (system AC-001.7)"
-      - "Given GET /tasks cannot be reached, gives no answer within 8 seconds, or answers anything but 200 with a JSON array (for example 503 or 500), when a person opens /, then the page shows \"Tasks could not be loaded. Please try again later.\" instead of the list and never \"No tasks yet.\" (system AC-001.8)"
-      - "Given the start page is open, when a person submits a valid task and POST /tasks cannot be reached, gives no answer within 8 seconds, or answers anything but 201 (for example 503), then the page shows \"The task could not be saved. Please try again.\", keeps the entered title and due date, and the list is unchanged (system AC-001.8)"
-    arguments: |
-      The start page replaces the template's landing content and must render per request (dynamic, fetch
-      with cache: "no-store"), never prerendered at build time. API_URL is server-side only (never
-      NEXT_PUBLIC_*), read at request time, default http://localhost:8080; document it in docs/env-vars.md.
-      Keep the template's smoke test (a level-1 heading); add a read-only @smoke (heading "Tasks", no load
-      error) and a @smoke @writes test creating a smoke-<uuid> task (dev only).
-    depends_on: []
-    done: false
+- id: taskboard9-gitops
+  shape: gitops-app
+  summary: Declare the postgres resource, give taskboard9-api its connection and wire taskboard9-web to
+    the API
+  acs:
+  - AC-001.1
+  - AC-001.2
+  - AC-001.4
+  - AC-001.5
+  - AC-001.6
+  gitops:
+  - resource: postgres
+  - uses: postgres
+    component: taskboard9-api
+  - env:
+      API_URL: http://taskboard9-api
+    component: taskboard9-web
+  depends_on: []
+  done: true
+- id: taskboard9-api
+  shape: service-python
+  summary: Store tasks in Postgres so they survive restarts and are shared by every instance
+  acs:
+  - AC-001.1
+  - AC-001.2
+  - AC-001.3
+  criteria:
+  - 'Given a task created with POST /tasks {"title": "Buy milk", "due_date": "2026-12-01"} (201), when
+    every API process is stopped and started again against the same database, then GET /tasks answers
+    200 and contains a task with the same id, title "Buy milk" and due_date "2026-12-01" (system AC-001.1)'
+  - Given an empty database, tasks "A", "B" and "C" created in that order and the API then restarted,
+    when task "D" is created and a client sends GET /tasks, then the response is 200 with exactly A, B,
+    C, D in that order, each with id, title and due_date as returned by its POST (system AC-001.2)
+  - Given two API instances using the same database, when task "A" is created through the first and then
+    task "B" through the second, then GET /tasks on either instance lists A before B with identical fields
+    (system AC-001.1, AC-001.2)
+  - 'Given the database is unreachable (or DATABASE_URL is not set), when a client sends GET /tasks or
+    a valid POST /tasks, then the response arrives within 5 seconds with status 503 and a JSON body {"detail":
+    <non-empty string>}, GET /health and GET /ready still answer 200, and once the database is reachable
+    GET /tasks does not contain the task of that POST (system AC-001.3)'
+  - Given the database was unreachable while the API kept running, when it becomes reachable again, then
+    within 30 seconds GET /tasks answers 200 and a valid POST /tasks answers 201, without the API process
+    being restarted, also when the API process was started while the database was unreachable (system
+    AC-001.3)
+  - Given the database is reachable, when a client sends the requests of this repo's spec 001 (valid and
+    invalid POST /tasks, GET /tasks), then the status codes, fields, 422 bodies and oldest-first order
+    are exactly those of the Contract, and a 422 stores no row (system AC-001.1, AC-001.2)
+  arguments: |
+    Supersedes AC-001.7 of this repo's spec 001 ("empty after restart"): withdraw it there with
+    `/component:spec --amend 001` and replace its test; do not leave a failing or skipped test behind.
+    Config: DATABASE_URL (plus PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD) comes from the system's
+    postgres resource (Secret taskboard9-postgres-app). Suggested stack: psycopg 3 with psycopg_pool (sync,
+    the routes are sync), schema applied by the service itself with CREATE TABLE IF NOT EXISTS under
+    pg_advisory_lock, never blocking startup. Tests need a real PostgreSQL (a devbox recipe or
+    testcontainers); keep an in-process restart test via TestClient(create_app()) on the same database.
+  depends_on: []
+  done: true
+- id: taskboard9-web
+  shape: web-nextjs
+  summary: Task board start page listing all tasks with a create form
+  acs:
+  - AC-001.4
+  - AC-001.5
+  - AC-001.6
+  - AC-001.7
+  - AC-001.8
+  criteria:
+  - 'Given API_URL points at an API whose GET /tasks answers 200 with [{"id": "1", "title": "A", "due_date":
+    "2026-12-01"}, {"id": "2", "title": "B", "due_date": null}], when a person opens the start page /,
+    then it shows a level-1 heading "Tasks" and a list with "A" above "B", "A" showing "2026-12-01" and
+    "B" showing "No due date" (system AC-001.4)'
+  - Given GET /tasks answers 200 with [], when a person opens /, then it shows the text "No tasks yet."
+    in place of the list, together with the create form (field "Title", field "Due date", button "Add
+    task") (system AC-001.5)
+  - 'Given the start page is open, when a person enters the title "Buy milk" and the due date 2026-12-01
+    and presses "Add task", then the API receives POST /tasks {"title": "Buy milk", "due_date": "2026-12-01"},
+    and after its 201 the returned task appears as the last list entry with "2026-12-01" without a page
+    reload (replacing "No tasks yet." when the list was empty) and both fields are empty; with the due
+    date left empty the body carries "due_date": null and the entry shows "No due date" (system AC-001.6)'
+  - Given the start page is open, when a person submits a title that is empty or whitespace only, or longer
+    than 200 characters after trimming, then the page shows "Title is required." or "Title must be at
+    most 200 characters." respectively at the title field, keeps the entered title and due date, and sends
+    no POST /tasks to the API (system AC-001.7)
+  - Given GET /tasks cannot be reached, gives no answer within 8 seconds, or answers anything but 200
+    with a JSON array (for example 503 or 500), when a person opens /, then the page shows "Tasks could
+    not be loaded. Please try again later." instead of the list and never "No tasks yet." (system AC-001.8)
+  - Given the start page is open, when a person submits a valid task and POST /tasks cannot be reached,
+    gives no answer within 8 seconds, or answers anything but 201 (for example 503), then the page shows
+    "The task could not be saved. Please try again.", keeps the entered title and due date, and the list
+    is unchanged (system AC-001.8)
+  arguments: |
+    The start page replaces the template's landing content and must render per request (dynamic, fetch
+    with cache: "no-store"), never prerendered at build time. API_URL is server-side only (never
+    NEXT_PUBLIC_*), read at request time, default http://localhost:8080; document it in docs/env-vars.md.
+    Keep the template's smoke test (a level-1 heading); add a read-only @smoke (heading "Tasks", no load
+    error) and a @smoke @writes test creating a smoke-<uuid> task (dev only).
+  depends_on: []
+  done: true
 gitops_pin: []
 ---
 
