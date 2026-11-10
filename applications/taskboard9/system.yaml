@@ -55,6 +55,8 @@ components:
       dev: {}
     expose:
       host: taskboard9-api
+    uses:
+      - postgres
   taskboard9-web:
     type: website
     lang: typescript
