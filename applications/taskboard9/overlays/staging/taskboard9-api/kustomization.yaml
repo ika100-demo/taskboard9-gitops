@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- deployment.yaml
+- httproute.yaml
+- service.yaml
+images:
+- name: ghcr.io/ika100-demo/taskboard9-api
+  newTag: sha-82e924a16b502c7a90ccb59dad69a894bdcdc653
