@@ -1,7 +1,7 @@
 ---
 spec_id: 001-persistent-tasks-in-postgres-with-a-web
 title: Persistent tasks in Postgres with a web task list
-status: draft
+status: approved
 priority: P1
 shape: gitops-app
 ---
@@ -62,3 +62,4 @@ None.
 ## Changelog
 
 - 2026-11-10 created
+- 2026-11-10 approved
